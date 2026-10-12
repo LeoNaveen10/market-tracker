@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Market Tracker — Company intelligence</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="/">
+        <span class="brand-icon">m</span> market<span class="brand-light"
+          >tracker</span
+        ></a
+      >
+      <div class="workspace">
+        <span class="avatar">P</span>
+        <div>Personal workspace<small>NSE company intelligence</small></div>
+        <span class="workspace-dot"></span>
+      </div>
+      <div class="nav-label">WORKSPACE</div>
+      <button class="nav active" id="overview">
+        ◫ <span>Company intelligence</span>
+      </button>
+      <div class="watchlist-head">
+        <span>YOUR WATCHLIST</span><span id="watch-count">0</span>
+      </div>
+      <div id="watchlist"></div>
+      <div class="sidebar-bottom">
+        <span class="small-dot"></span> Daily collection enabled<small
+          >Free public sources · Development</small
+        >
+      </div>
+    </aside>
+    <main>
+      <header>
+        <div class="breadcrumb">
+          Workspace <span>/</span> Company intelligence
+        </div>
+        <span class="personal-label">PERSONAL EDITION</span>
+      </header>
+      <section class="intro">
+        <div>
+          <div class="eyebrow">LESS NOISE. MORE SIGNAL.</div>
+          <h1 id="page-title">Your companies, in focus.</h1>
+          <p id="page-description">
+            Results, announcements and stories. One place to stay informed.
+          </p>
+        </div>
+        <button id="refresh" class="primary">↻ &nbsp;Refresh data</button>
+      </section>
+      <section class="search-section">
+        <label for="search">Find your next company</label>
+        <div class="search-box">
+          <span>⌕</span
+          ><input
+            id="search"
+            placeholder="Search NSE companies by name or symbol…"
+            autocomplete="off"
+          /><kbd>NSE</kbd>
+        </div>
+        <div id="search-results" class="search-results" hidden></div>
+        <div class="search-meta">
+          <span id="directory-status">Loading company directory…</span
+          ><button id="directory-refresh" class="text-button">
+            Sync directory
+          </button>
+        </div>
+      </section>
+      <section class="stats">
+        <div>
+          <span>Companies followed</span><strong id="stat-companies">0</strong
+          ><small>Your personal coverage universe</small>
+        </div>
+        <div>
+          <span>Updates collected</span><strong id="stat-updates">0</strong
+          ><small id="updates-note">Latest 300 stored updates</small>
+        </div>
+        <div>
+          <span>Financial results</span><strong id="stat-results">0</strong
+          ><small>Quarterly and annual disclosures</small>
+        </div>
+        <div>
+          <span>Collection cadence</span
+          ><strong class="daily">Daily <i>↻</i></strong
+          ><small>Refresh on demand, anytime</small>
+        </div>
+      </section>
+      <section class="feed-header">
+        <div>
+          <h2>Intelligence feed <span id="feed-count">0</span></h2>
+          <p>Original sources. Concise context. A history you can revisit.</p>
+        </div>
+        <select id="category" aria-label="Filter update type">
+          <option value="">All updates</option>
+          <option value="results">Financial results</option>
+          <option value="press release">Press releases</option>
+          <option value="news & research">News & research</option>
+          <option value="filing">Other filings</option>
+        </select>
+      </section>
+      <div id="notice" role="status" hidden></div>
+      <section id="feed" aria-live="polite"></section>
+      <section class="source-panel">
+        <div>
+          <span class="eyebrow">COLLECTION HEALTH</span>
+          <h3>Know where your information comes from.</h3>
+          <p>
+            NSE disclosures and public news feeds. Summaries are text extracts,
+            not investment advice.
+          </p>
+        </div>
+        <div id="health"></div>
+      </section>
+      <footer>
+        Market Tracker <span>Built for thoughtful company research.</span
+        ><span>One-year backfill, where sources make it available.</span>
+      </footer>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
