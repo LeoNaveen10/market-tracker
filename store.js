@@ -1,3 +1,4 @@
+import { importance, IMPORTANCE_POLICY } from "./importance.js";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -12,6 +13,35 @@ CREATE TABLE IF NOT EXISTS items(id TEXT PRIMARY KEY,symbol TEXT NOT NULL REFERE
 CREATE INDEX IF NOT EXISTS items_company_date ON items(symbol,published);
 CREATE TABLE IF NOT EXISTS runs(id INTEGER PRIMARY KEY,symbol TEXT,source TEXT,status TEXT,error TEXT,added INTEGER,finished TEXT);
 CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,value TEXT);`);
+  if (
+    !db
+      .prepare("PRAGMA table_info(runs)")
+      .all()
+      .some((column) => column.name === "skipped")
+  ) {
+    db.exec("ALTER TABLE runs ADD COLUMN skipped INTEGER NOT NULL DEFAULT 0");
+  }
+  const previousPolicy = db
+    .prepare("SELECT value FROM metadata WHERE key='importance_policy'")
+    .get()?.value;
+  if (previousPolicy !== IMPORTANCE_POLICY) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      let removed = 0;
+      const remove = db.prepare("DELETE FROM items WHERE id=?");
+      for (const item of db.prepare("SELECT * FROM items").all()) {
+        if (!importance(item).important)
+          removed += Number(remove.run(item.id).changes);
+      }
+      const meta = db.prepare("INSERT OR REPLACE INTO metadata VALUES(?,?)");
+      meta.run("importance_policy", IMPORTANCE_POLICY);
+      meta.run("importance_cleanup_removed", String(removed));
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  }
   return {
     db,
     saveCompanies(rows) {
@@ -35,8 +65,13 @@ CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,value TEXT);`);
       const stmt = db.prepare(
         "INSERT OR IGNORE INTO items VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
       );
-      let added = 0;
+      let added = 0,
+        skipped = 0;
       for (const i of items) {
+        if (!importance(i).important) {
+          skipped++;
+          continue;
+        }
         const id = createHash("sha256")
           .update([symbol, i.source, i.url, i.title, i.published].join("|"))
           .digest("hex");
@@ -57,7 +92,7 @@ CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,value TEXT);`);
           ).changes,
         );
       }
-      return added;
+      return { added, skipped };
     },
   };
 }

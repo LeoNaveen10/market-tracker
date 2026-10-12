@@ -1,3 +1,4 @@
+import { importance } from "./importance.js";
 import { presentItem } from "./highlights.js";
 import http from "node:http";
 import { readFile } from "node:fs/promises";
@@ -13,9 +14,19 @@ export function createApp({
   const store = openStore(dbPath),
     db = store.db;
   const state = { busy: false, directoryBusy: false, directoryError: null };
+  const subscribers = new Set();
+  function publishChange() {
+    for (const response of subscribers)
+      response.write("event: change\ndata: {}\n\n");
+  }
+  const heartbeat = setInterval(() => {
+    for (const response of subscribers) response.write(": heartbeat\n\n");
+  }, 30000);
+  heartbeat.unref();
   async function directory() {
     if (state.directoryBusy) return;
     state.directoryBusy = true;
+    publishChange();
     try {
       const rows = await sources.companyDirectory();
       if (!rows.length)
@@ -26,11 +37,13 @@ export function createApp({
       state.directoryError = e.message;
     } finally {
       state.directoryBusy = false;
+      publishChange();
     }
   }
   async function refresh(symbol) {
     if (state.busy) return false;
     state.busy = true;
+    publishChange();
     try {
       const companies = db
         .prepare(
@@ -56,9 +69,9 @@ export function createApp({
         ]) {
           try {
             const items = await fn(company, since);
-            const added = store.saveItems(company.symbol, items);
+            const { added, skipped } = store.saveItems(company.symbol, items);
             db.prepare(
-              "INSERT INTO runs(symbol,source,status,error,added,finished) VALUES(?,?,?,?,?,?)",
+              "INSERT INTO runs(symbol,source,status,error,added,finished,skipped) VALUES(?,?,?,?,?,?,?)",
             ).run(
               company.symbol,
               source,
@@ -66,11 +79,12 @@ export function createApp({
               items.warning || null,
               added,
               new Date().toISOString(),
+              skipped,
             );
           } catch (e) {
             ok = false;
             db.prepare(
-              "INSERT INTO runs(symbol,source,status,error,added,finished) VALUES(?,?,?,?,?,?)",
+              "INSERT INTO runs(symbol,source,status,error,added,finished,skipped) VALUES(?,?,?,?,?,?,?)",
             ).run(
               company.symbol,
               source,
@@ -78,6 +92,7 @@ export function createApp({
               e.message,
               0,
               new Date().toISOString(),
+              0,
             );
           }
         }
@@ -89,6 +104,7 @@ export function createApp({
       }
     } finally {
       state.busy = false;
+      publishChange();
     }
     return true;
   }
@@ -108,6 +124,18 @@ export function createApp({
           return json(res, 403, {
             error: "Cross-origin requests are not allowed",
           });
+      }
+      if (u.pathname === "/api/events" && req.method === "GET") {
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+          "X-Accel-Buffering": "no",
+        });
+        subscribers.add(res);
+        res.write("event: ready\ndata: {}\n\n");
+        res.on("close", () => subscribers.delete(res));
+        return;
       }
       if (u.pathname === "/api/status")
         return json(res, 200, {
@@ -156,7 +184,10 @@ export function createApp({
               "SELECT * FROM items WHERE (? IS NULL OR symbol=?) AND (? IS NULL OR category=?) ORDER BY published DESC LIMIT 300",
             )
             .all(symbol, symbol, category, category)
-            .map(presentItem),
+            .map((record) => ({
+              ...presentItem(record),
+              importanceReason: importance(record).reason,
+            })),
         );
       }
       if (u.pathname === "/api/directory/refresh" && req.method === "POST") {
@@ -250,6 +281,9 @@ export function createApp({
     },
     close() {
       clearInterval(timer);
+      clearInterval(heartbeat);
+      for (const response of subscribers) response.end();
+      subscribers.clear();
       server.close();
       db.close();
     },

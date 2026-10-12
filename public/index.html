@@ -73,8 +73,9 @@
           ><small>Your personal coverage universe</small>
         </div>
         <div>
-          <span>Updates collected</span><strong id="stat-updates">0</strong
-          ><small id="updates-note">Latest 300 stored updates</small>
+          <span>Important updates saved</span
+          ><strong id="stat-updates">0</strong
+          ><small id="updates-note">Latest 300 important updates</small>
         </div>
         <div>
           <span>Financial results</span><strong id="stat-results">0</strong
@@ -88,15 +89,18 @@
       </section>
       <section class="feed-header">
         <div>
-          <h2>Intelligence feed <span id="feed-count">0</span></h2>
-          <p>Original sources. Concise context. A history you can revisit.</p>
+          <h2>Important updates <span id="feed-count">0</span></h2>
+          <p>
+            Only important business events are saved. Routine notices are
+            discarded.
+          </p>
         </div>
         <select id="category" aria-label="Filter update type">
-          <option value="">All updates</option>
+          <option value="">All important updates</option>
           <option value="results">Financial results</option>
           <option value="press release">Press releases</option>
           <option value="news & research">News & research</option>
-          <option value="filing">Other filings</option>
+          <option value="filing">Important filings</option>
         </select>
       </section>
       <div id="notice" role="status" hidden></div>

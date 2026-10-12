@@ -20,15 +20,25 @@ The development server listens on port 3000 on loopback. Open it through your de
 - **Quarterly financial figures:** NSE financial-results filings and XBRL, when supported. Revenue and net profit are taken from the current-quarter INR context. YoY revenue growth is calculated only with a matching previous-year quarter and the same consolidated or standalone basis. Unsupported bank/other taxonomy layouts show missing figures explicitly.
 - **News and research:** Google News RSS searches using the company name. Attribution, source links and public feed excerpts are retained. Full articles, paywalled reports and social media are not scraped. RSS coverage is limited and does not provide a complete one-year archive or a guarantee of research-article coverage.
 
-Filing and announcement cards show up to three short, source-backed highlights instead of opening paragraphs or full text. The extractor ranks business statements, removes common cover-letter and administrative boilerplate, preserves negative facts and figures, and deduplicates statements. When no reliable statement is found, the card directs you to the original filing. Existing stored filings use the same presentation without deleting their underlying history. Full source text is excluded from feed API responses.
+Filing and announcement cards show up to three short, source-backed highlights instead of opening paragraphs or full text. The extractor ranks business statements, removes common cover-letter and administrative boilerplate, preserves negative facts and figures, and deduplicates statements. When no reliable statement is found, the card directs you to the original filing. Retained existing filings use the same highlights presentation. Full source text is excluded from feed API responses.
 
 Summaries use source extracts and deterministic financial templates, not a paid language model. They are not guaranteed interpretations of every PDF or full article. All displayed information links back to its original source; figures are not invented when extraction fails.
 
+## Important-only retention
+
+Every source is filtered **before database insertion**. Kept events include results and financial performance, declared dividends/buybacks, acquisitions, awarded/cancelled contracts, CEO/CFO changes, credit downgrades, defaults and other identified material risks. Capacity expansion needs a numerical impact; product launches and partnerships need a disclosed financial impact. Each retained card explains its classification.
+
+Routine notices (trading windows, newspaper reproductions, voting reports, compliance certificates, meeting schedules, transcripts and certificate paperwork) and unsupported promotional updates are discarded. News classification uses the headline to avoid treating unrelated stories in RSS descriptions as the article's event. These are transparent heuristic rules in `importance.js`, not a guarantee of materiality; an important event with unsupported wording can be missed. There is no all-updates archive or toggle. Per-refresh logs retain only counts of rejected records, not their titles or bodies.
+
+**On the first startup after upgrading, the same policy permanently deletes previously stored updates that do not qualify.** Important history, watchlists and the company directory remain. This cleanup is transactional and versioned so a completed migration is not repeated on each startup. Discarded records can only be recovered from the original source, if still available.
+
 ## History and refresh behavior
 
-SQLite lives in `data/market.db`, with WAL mode enabled. Followed companies, source text, normalized summaries, quarterly metrics and refresh logs survive restarts. Duplicate source records are ignored. Unfollowing preserves historical records. The feed shows the latest 300 records; older records remain stored in SQLite. Back up the database using SQLite's backup API or stop the server before copying the database and associated WAL files.
+SQLite lives in `data/market.db`, with WAL mode enabled. Followed companies, source text for important events, normalized summaries, quarterly metrics and refresh logs survive restarts. Duplicate source records are ignored. Unfollowing preserves historical records. The feed shows the latest 300 records; older records remain stored in SQLite. Back up the database using SQLite's backup API or stop the server before copying the database and associated WAL files.
 
 The first collection requests one year of announcements; financial parsing also fetches earlier comparison quarters. Subsequent collections overlap the previous successful refresh by three days. Failed sources are logged and do not advance the successful-refresh date. Automatic collection runs approximately every 24 hours while the app is running; manual refresh is available anytime and concurrent collections are prevented.
+
+The frontend does not poll `watchlist`, `status` or `items` on a timer. One persistent `/api/events` connection notifies it when collection starts or finishes. User actions also refresh the view. The server sends keepalive comments on that existing connection, not repeated HTTP requests. If the connection fails, the client closes it and asks you to reload rather than entering an automatic retry loop. The daily scheduler uses an in-process timer to check due work; it does not repeatedly scrape while idle.
 
 ## Validation
 

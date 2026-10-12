@@ -12,6 +12,7 @@ let selected = "",
   status = {},
   items = [];
 let searchSequence = 0;
+let loadGeneration = 0;
 async function api(path, method = "GET") {
   const r = await fetch(path, { method });
   const data = await r.json();
@@ -67,10 +68,10 @@ function renderFeed() {
             url = new URL(i.url);
             if (url.protocol !== "https:") url = null;
           } catch {}
-          return `<article class="card"><div class="card-meta"><span class="tag ${i.category === "results" ? "results" : ""}">${esc(i.category)}</span><strong>${esc(i.symbol)}</strong><span>·</span><span>${esc(stamp(i.published))}</span><span>·</span><span>${esc(i.source)}</span></div><h3>${esc(i.title)}</h3>${i.highlights ? `<ul class="highlights">${i.highlights.map((point) => `<li>${esc(point)}</li>`).join("")}</ul>` : `<p>${esc(i.summary)}</p>`}${i.growth !== null ? `<div class="growth">Sales / revenue growth &nbsp; <strong>${esc(i.growth)}% YoY</strong> <span>· ${i.source === "NSE financials" ? "calculated from matched quarterly filings" : "explicitly stated by source"}</span></div>` : ""}<div class="card-bottom"><small>${esc(i.note)} · Saved ${esc(stamp(i.collected_at))}</small>${url ? `<a class="source-link" href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">Original source ↗</a>` : ""}</div></article>`;
+          return `<article class="card"><div class="card-meta"><span class="tag ${i.category === "results" ? "results" : ""}">${esc(i.category)}</span><strong>${esc(i.symbol)}</strong>${i.importanceReason ? `<span class="importance-reason">${esc(i.importanceReason)}</span>` : ""}<span>·</span><span>${esc(stamp(i.published))}</span><span>·</span><span>${esc(i.source)}</span></div><h3>${esc(i.title)}</h3>${i.highlights ? `<ul class="highlights">${i.highlights.map((point) => `<li>${esc(point)}</li>`).join("")}</ul>` : `<p>${esc(i.summary)}</p>`}${i.growth !== null ? `<div class="growth">Sales / revenue growth &nbsp; <strong>${esc(i.growth)}% YoY</strong> <span>· ${i.source === "NSE financials" ? "calculated from matched quarterly filings" : "explicitly stated by source"}</span></div>` : ""}<div class="card-bottom"><small>${esc(i.note)} · Saved ${esc(stamp(i.collected_at))}</small>${url ? `<a class="source-link" href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">Original source ↗</a>` : ""}</div></article>`;
         })
         .join("")
-    : `<div class="empty"><div class="empty-icon">◫</div><h3>${watch.length ? "Your next update will appear here." : "Build your circle of companies."}</h3><p>${watch.length ? "Refresh your watchlist to collect available disclosures and news. Source restrictions or missing history are shown in collection health below." : "Search an NSE company above and add it to your watchlist. We’ll keep its results, announcements and public news together."}</p></div>`;
+    : `<div class="empty"><div class="empty-icon">◫</div><h3>${watch.length ? "Your next update will appear here." : "Build your circle of companies."}</h3><p>${watch.length ? "No important updates match this view. Routine notices are filtered out before storage. Refresh to check for new business events." : "Search an NSE company above and add it to your watchlist. We’ll keep its results, announcements and public news together."}</p></div>`;
 }
 function renderStatus() {
   const directory = status.companyCount
@@ -96,13 +97,14 @@ function renderStatus() {
       .slice(0, 6)
       .map(
         (r) =>
-          `<div class="health-row"><span class="${r.status}">●</span> ${esc(r.symbol)} · ${esc(r.source)} · ${r.status === "success" ? `${r.added} new` : r.status === "limited" ? "limited coverage" : "failed"}</div><small class="health-detail">${esc(r.error || stamp(r.finished))}</small>`,
+          `<div class="health-row"><span class="${r.status}">●</span> ${esc(r.symbol)} · ${esc(r.source)} · ${r.status === "success" ? `${r.added} saved · ${r.skipped || 0} filtered out` : r.status === "limited" ? "limited coverage" : "failed"}</div><small class="health-detail">${esc(r.error || stamp(r.finished))}</small>`,
       )
       .join("");
 }
 async function load() {
+  const generation = ++loadGeneration;
   try {
-    [watch, status, items] = await Promise.all([
+    const next = await Promise.all([
       api("/api/watchlist"),
       api("/api/status"),
       api(
@@ -110,6 +112,8 @@ async function load() {
           (selected ? "?symbol=" + encodeURIComponent(selected) : ""),
       ),
     ]);
+    if (generation !== loadGeneration) return;
+    [watch, status, items] = next;
     renderWatch();
     renderFeed();
     renderStatus();
@@ -201,5 +205,22 @@ $("#directory-refresh").onclick = async () => {
     notice(e.message);
   }
 };
+// One persistent notification connection replaces periodic API polling.
+let reloadTimer;
+const events = new EventSource("/api/events");
+function scheduleLoad() {
+  clearTimeout(reloadTimer);
+  reloadTimer = setTimeout(load, 75);
+}
+events.addEventListener("ready", scheduleLoad);
+events.addEventListener("change", scheduleLoad);
+events.onerror = () => {
+  events.close(); // Avoid an automatic reconnect/request loop during outages.
+  notice("Live updates disconnected. Reload the page to reconnect.");
+};
+window.addEventListener("pagehide", () => {
+  events.close();
+  clearTimeout(reloadTimer);
+});
+// Initial data still loads if event streaming is unavailable.
 await load();
-setInterval(load, 5000);
