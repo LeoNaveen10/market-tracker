@@ -1,3 +1,4 @@
+import { extractHighlights } from "./highlights.js";
 import { XMLParser } from "fast-xml-parser";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
@@ -162,7 +163,10 @@ export async function announcements(company, since) {
     const category = classifyAnnouncement(title, body);
     let content = body || title;
     let note = "Announcement text";
-    if (attachment && category !== "filing") {
+    if (
+      attachment &&
+      (category !== "filing" || !extractHighlights(body).length)
+    ) {
       try {
         const pdf = await parsePdf(
           await request(attachment, { binary: true }),
@@ -179,7 +183,9 @@ export async function announcements(company, since) {
     items.push({
       title,
       content,
-      summary: summarize(content),
+      summary:
+        extractHighlights(content, body).join(" ") ||
+        "Key details could not be reliably extracted. Open the original filing.",
       growth: salesGrowth(content),
       category,
       url:

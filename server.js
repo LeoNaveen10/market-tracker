@@ -1,3 +1,4 @@
+import { presentItem } from "./highlights.js";
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
@@ -154,7 +155,8 @@ export function createApp({
             .prepare(
               "SELECT * FROM items WHERE (? IS NULL OR symbol=?) AND (? IS NULL OR category=?) ORDER BY published DESC LIMIT 300",
             )
-            .all(symbol, symbol, category, category),
+            .all(symbol, symbol, category, category)
+            .map(presentItem),
         );
       }
       if (u.pathname === "/api/directory/refresh" && req.method === "POST") {

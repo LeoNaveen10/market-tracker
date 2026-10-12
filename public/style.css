@@ -744,3 +744,18 @@ footer span:last-child {
     right: 17px;
   }
 }
+
+.highlights {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: #586858;
+  font-size: 12px;
+  line-height: 1.75;
+}
+.highlights li {
+  padding-left: 4px;
+  margin: 5px 0;
+}
+.highlights li::marker {
+  color: #43805a;
+}

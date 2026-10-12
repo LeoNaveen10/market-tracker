@@ -20,6 +20,8 @@ The development server listens on port 3000 on loopback. Open it through your de
 - **Quarterly financial figures:** NSE financial-results filings and XBRL, when supported. Revenue and net profit are taken from the current-quarter INR context. YoY revenue growth is calculated only with a matching previous-year quarter and the same consolidated or standalone basis. Unsupported bank/other taxonomy layouts show missing figures explicitly.
 - **News and research:** Google News RSS searches using the company name. Attribution, source links and public feed excerpts are retained. Full articles, paywalled reports and social media are not scraped. RSS coverage is limited and does not provide a complete one-year archive or a guarantee of research-article coverage.
 
+Filing and announcement cards show up to three short, source-backed highlights instead of opening paragraphs or full text. The extractor ranks business statements, removes common cover-letter and administrative boilerplate, preserves negative facts and figures, and deduplicates statements. When no reliable statement is found, the card directs you to the original filing. Existing stored filings use the same presentation without deleting their underlying history. Full source text is excluded from feed API responses.
+
 Summaries use source extracts and deterministic financial templates, not a paid language model. They are not guaranteed interpretations of every PDF or full article. All displayed information links back to its original source; figures are not invented when extraction fails.
 
 ## History and refresh behavior
